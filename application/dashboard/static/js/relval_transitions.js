@@ -3,6 +3,7 @@
 
 const timeFilterSelector = document.getElementById('time-filter');
 const timeUnitSelector = document.getElementById('time-unit');
+const batchNameSelector = document.getElementById('batch-name-filter');
 const chartsContainer = document.getElementById('charts-container');
 let allTransitions = [];
 
@@ -39,6 +40,15 @@ function displayUpdateTime(timestamp) {
         relativeTime = relativeDate.format(Math.floor(secondsAgo / 3600), 'hour');
     }
     displayElement.textContent = `${normalDate} (${relativeTime})`;
+}
+
+function populateBatchNameSelector() {
+    const batchNames = [...new Set(allTransitions.map(t => t.batch_name))].sort();
+    batchNames.forEach(name => {
+        if (name) {
+            batchNameSelector.add(new Option(name, name));
+        }
+    });
 }
 
 function renderChart(container, transitionType, transitions, unit) {
@@ -104,6 +114,7 @@ function renderAllCharts() {
   chartsContainer.innerHTML = '';
   const unit = timeUnitSelector.value;
   const timeFilterDays = timeFilterSelector.value;
+  const selectedBatch = batchNameSelector.value;
 
   let filteredTransitions = allTransitions;
 
@@ -113,9 +124,13 @@ function renderAllCharts() {
     const cutoffTimestamp = Math.floor(cutoffDate.getTime() / 1000);
     filteredTransitions = allTransitions.filter(t => t.start >= cutoffTimestamp);
   }
+  
+  if (selectedBatch !== 'all') {
+    filteredTransitions = filteredTransitions.filter(t => t.batch_name === selectedBatch);
+  }
 
   const groupedByType = filteredTransitions.reduce((acc, t) => {
-    const type = `${t.from}->${t.to}`;
+    const type = `${t.from} -> ${t.to}`;
     if (!acc[type]) acc[type] = [];
     acc[type].push(t);
     return acc;
@@ -134,6 +149,7 @@ async function initializeDashboard() {
     if (!response.ok) throw new Error((await response.json()).error || 'Failed to fetch data');
     const { last_updated, results } = await response.json();
     allTransitions = results;
+    populateBatchNameSelector();
     renderAllCharts();
     displayUpdateTime(last_updated);
   } catch (error) {
@@ -142,8 +158,8 @@ async function initializeDashboard() {
   }
 }
 
-
-timeFilterSelector.addEventListener('change', renderAllCharts);
-timeUnitSelector.addEventListener('change', renderAllCharts);
+[timeFilterSelector, timeUnitSelector, batchNameSelector].forEach(selector => {
+    selector.addEventListener('change', renderAllCharts);
+});
 
 initializeDashboard();

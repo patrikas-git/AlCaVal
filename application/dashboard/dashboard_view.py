@@ -1,9 +1,9 @@
-from flask import Blueprint, current_app, jsonify, render_template
-from database.database import Database
 import json
 import os
-import pandas as pd
 import time
+import pandas as pd
+from flask import Blueprint, jsonify, render_template
+from database.database import Database
 
 dashboard_blueprint = Blueprint(
     "dashboard",
@@ -30,7 +30,7 @@ def get_dashboard_data():
     try:
         file_mod_time = os.path.getmtime(TRANSITIONS_FILE)
 
-        with open(TRANSITIONS_FILE, "r") as f:
+        with open(TRANSITIONS_FILE, "r", encoding = 'UTF-8') as f:
             data = json.load(f)
         return jsonify({
             "last_updated": int(file_mod_time),
@@ -38,7 +38,7 @@ def get_dashboard_data():
         })
 
     except FileNotFoundError:
-        return jsonify({"error": "Data not available yet. Please wait for the first job to run."}), 404
+        return jsonify({"error": "Data not available yet. Wait for the first job to run."}), 404
 
 
 def process_relval_transitions(flask_app):
@@ -48,20 +48,18 @@ def process_relval_transitions(flask_app):
         relvals_collection = relval_db.collection
 
         query = {"workflows": {"$ne": []}}
-        projection = {"_id": 0, "workflows.name": 1, "workflows.status_history": 1}
+        projection = {"_id": 0, "batch_name": 1, "workflows.name": 1, "workflows.status_history": 1}
 
         all_events = []
         for doc in relvals_collection.find(query, projection):
             for workflow in doc.get("workflows", []):
-                workflow_name = workflow.get("name")
                 for history_event in workflow.get("status_history", []):
-                    all_events.append(
-                        {
-                            "workflow_name": workflow_name,
+                    all_events.append({
+                            "workflow_name": workflow.get("name"),
+                            "batch_name": doc.get("batch_name"),
                             "status": history_event.get("status"),
                             "time": history_event.get("time"),
-                        }
-                    )
+                        })
 
         if not all_events:
             print("No statuses found in DB to process.")
@@ -75,19 +73,20 @@ def process_relval_transitions(flask_app):
                     "from": group["status"],
                     "to": group["status"].shift(-1),
                     "start": group["time"],
+                    "batch_name": group["batch_name"],
                     "duration_seconds": group["time"].shift(-1) - group["time"],
                 }
             )
 
-            group_transitions.dropna(inplace=True)
+            group_transitions.dropna(inplace=True, subset=["to", "duration_seconds"])
             group_transitions["duration_seconds"] = group_transitions[
                 "duration_seconds"
             ].astype(int)
             transitions.extend(group_transitions.to_dict("records"))
 
-        with open(TRANSITIONS_FILE, "w") as f:
+        with open(TRANSITIONS_FILE, "w", encoding = 'UTF-8') as f:
             json.dump(transitions, f)
 
-        print("--- RelVal transition fetching finished in %s seconds ---" % (time.time() - start_time))
+        print(f"--- RelVal transition fetching finished in {time.time() - start_time} seconds ---")
 
         return jsonify(transitions)
