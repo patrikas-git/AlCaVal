@@ -1,54 +1,202 @@
 {% extends 'Base.html.jinja' %}
 
 {% block headercontent %}
-  <script src="{{ url_for('dashboard.static', filename='js/dashboard.js') }}" type="text/javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('dashboard.static', filename='js/dashboard.js') }}" type="text/javascript"></script>
 {% endblock %}
 
 {% block content %}
-  <h2 class='card-title' style="text-align: center; margin-top: 10px;"><strong>Dashboard</strong></h2>
+<h1 class='card-title' style="text-align: center; margin-top: 10px;"><strong>Dashboard</strong></h1>
+<style>
+  #charts-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    justify-content: center;
+  }
 
-  <div style='text-align: left; margin: 5px 20%; padding: 10px;' class='shadow bg-white'>
-    <h5 class="mt-3" id="threads">Submission threads (0)</h5>
-    <ul id="threads-list"></ul>
-    <h5 class="mt-3" id="queue">Submission queue (0)</h5>
-    <ul id="queue-list"></ul>
-    {% if session['user']['response']['role_index'] > 1 %}
-      <h5 class="mt-3" id="build-info">Build info</h5>
-      <ul id="build-info-list"></ul>
-      <h5 class="mt-3" id="system-uptime">System uptime</h5>
-      <ul id="system-uptime-list"></ul>
-      {#<h5 class="mt-3" id="settings">Settings (0)</h5>
-      <small>
-        <ul id="settings-list"></ul>      
-      </small>#}
-      <h5 class="mt-3" id="locks">Locked objects (0)</h5>
-      <small>
-        <ul id="locks-list"></ul>      
-      </small>
-    {% endif %}
+  .chart-block {
+    flex: 0 1 400px;
+    min-width: 350px;
+  }
+
+  .chart-container {
+    max-width: 900px;
+  }
+</style>
+<div style='text-align: left; margin: 5px 10%; padding: 10px;' class='shadow bg-white'>
+  {% if session['user']['response']['role_index'] > 1 %}
+  <div style="display: flex; justify-content: center; gap: 2rem;">
+    <div>
+      <label for="time-filter">Show Data From:</label>
+      <select id="time-filter">
+        <option value="all" selected>All Time</option>
+        <option value="7">Last 7 Days</option>
+        <option value="30">Last 30 Days</option>
+        <option value="90">Last 90 Days</option>
+      </select>
+    </div>
+    <div>
+      <label for="time-unit">Group Bins by:</label>
+      <select id="time-unit">
+        <option value="minutes" selected>Minutes</option>
+        <option value="hours">Hours</option>
+        <option value="days">Days</option>
+      </select>
+    </div>
   </div>
+
+  <div id="charts-container"></div>
+  {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const timeFilterSelector = document.getElementById('time-filter');
+    const timeUnitSelector = document.getElementById('time-unit');
+    const chartsContainer = document.getElementById('charts-container');
+    let allTransitions = [];
+
+    function getShortenedLabel(unitName) {
+      if (unitName == "minutes") {
+        return "min"
+      } else if (unitName == "hours") {
+        return "h"
+      } else {
+        return "d"
+      }
+    }
+
+    function renderChart(container, transitionType, transitions, unit) {
+      // Create HTML elements for the chart
+      const chartBlock = document.createElement('div');
+      chartBlock.className = 'chart-block';
+
+      const title = document.createElement('h4');
+      title.textContent = transitionType;
+
+      const canvasContainer = document.createElement('div');
+      canvasContainer.className = 'chart-container';
+      const canvas = document.createElement('canvas');
+      canvasContainer.appendChild(canvas);
+
+      chartBlock.appendChild(title);
+      chartBlock.appendChild(canvasContainer);
+      container.appendChild(chartBlock);
+
+      let divisor = 60; // Default to minutes
+      let step = 15;    // Bins of 15 minutes
+      if (unit === 'hours') {
+        divisor = 3600;
+        step = 1;     // Bins of 1 hour
+      }
+      if (unit === 'days') {
+        divisor = 86400;
+        step = 1;     // Bins of 1 day
+      }
+
+      // 2. Group durations into the predefined bins
+      const bins = transitions.reduce((acc, t) => {
+        const durationInUnit = t.duration_seconds / divisor;
+        // Calculate which bin the duration falls into
+        const binStart = Math.floor(durationInUnit / step) * step;
+        acc[binStart] = (acc[binStart] || 0) + 1;
+        return acc;
+      }, {});
+
+      // 3. Prepare the sorted data and labels for the chart
+      const sortedBinStarts = Object.keys(bins).map(Number).sort((a, b) => a - b);
+      const chartData = sortedBinStarts.map(start => bins[start]);
+      // Create labels that show a range, e.g., "15-30 minutes"
+      const chartLabels = sortedBinStarts.map(start => `< ${start + step} ${getShortenedLabel(unit)}`);
+
+      new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: chartLabels,
+          datasets: [{
+            label: 'Number of transitions',
+            data: chartData,
+            backgroundColor: 'rgb(5, 155, 255)'
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Count' }, suggestedMax: 3, ticks: { precision: 0 } },
+            x: { title: { display: true, text: `Time in ${unit}` } }
+          }
+        }
+      });
+    }
+
+    function renderAllCharts() {
+      chartsContainer.innerHTML = '';
+      const unit = timeUnitSelector.value;
+      const timeFilterDays = timeFilterSelector.value;
+
+      let filteredTransitions = allTransitions;
+
+      if (timeFilterDays !== 'all') {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - parseInt(timeFilterDays));
+        const cutoffTimestamp = Math.floor(cutoffDate.getTime() / 1000);
+        filteredTransitions = allTransitions.filter(t => t.start >= cutoffTimestamp);
+      }
+
+      const groupedByType = filteredTransitions.reduce((acc, t) => {
+        const type = `${t.from}->${t.to}`;
+        if (!acc[type]) acc[type] = [];
+        acc[type].push(t);
+        return acc;
+      }, {});
+
+      for (const transitionType in groupedByType) {
+        const transitions = groupedByType[transitionType];
+        renderChart(chartsContainer, transitionType, transitions, unit);
+      }
+    }
+
+    async function initializeDashboard() {
+      try {
+        const response = await fetch('/dashboard/dashboard-data');
+        if (!response.ok) throw new Error((await response.json()).error || 'Failed to fetch data');
+        allTransitions = await response.json();
+        renderAllCharts();
+      } catch (error) {
+        console.error('Error initializing dashboard:', error);
+        chartsContainer.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      }
+    }
+
+    timeFilterSelector.addEventListener('change', renderAllCharts);
+    timeUnitSelector.addEventListener('change', renderAllCharts);
+
+    initializeDashboard();
+  });
+</script>
 <script type="text/javascript">
-  let submissionWorkers= [];
-  let submissionQueue= [];
-  let locks= [];
-  let settings= [];
-  let uptime= {};
-  let buildInfo= undefined;
-  let refreshInterval= 60000;
+  let submissionWorkers = [];
+  let submissionQueue = [];
+  let locks = [];
+  let settings = [];
+  let uptime = {};
+  let buildInfo = undefined;
+  let refreshInterval = 60000;
 
   fetchWorkerInfo()
   setInterval(fetchWorkerInfo, refreshInterval);
   fetchQueueInfo()
   setInterval(fetchQueueInfo, refreshInterval);
   {% if session['user']['response']['role_index'] > 1 %}
-    fetchLocksInfo()
-    setInterval(fetchLocksInfo, refreshInterval);
-    // fetchSettings()
-    // setInterval(fetchSettings, refreshInterval);
-    fetchUptime()
-    setInterval(fetchUptime, refreshInterval);
-    fetchBuildInfo()
-    setInterval(fetchBuildInfo, refreshInterval);
+  fetchLocksInfo()
+  setInterval(fetchLocksInfo, refreshInterval);
+  // fetchSettings()
+  // setInterval(fetchSettings, refreshInterval);
+  fetchUptime()
+  setInterval(fetchUptime, refreshInterval);
+  fetchBuildInfo()
+  setInterval(fetchBuildInfo, refreshInterval);
   {% endif %}
   $('title').html('AlCaVal | Dashboard')
 </script>
