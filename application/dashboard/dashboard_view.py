@@ -29,10 +29,6 @@ def get_dashboard_data():
     """
     try:
         file_mod_time = os.path.getmtime(TRANSITIONS_FILE)
-        file_age = time.time() - file_mod_time
-        
-        if file_age > MAX_AGE_SECONDS + 10:
-            return jsonify({"error": "Data is stale. The background job may be delayed or failing."}), 503
 
         with open(TRANSITIONS_FILE, "r") as f:
             data = json.load(f)
