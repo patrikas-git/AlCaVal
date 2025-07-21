@@ -4,6 +4,7 @@ import time
 import pandas as pd
 from flask import Blueprint, jsonify, render_template
 from database.database import Database
+from .. import get_userinfo
 
 dashboard_blueprint = Blueprint(
     "dashboard",
@@ -19,6 +20,7 @@ MAX_AGE_SECONDS = 15 * 60
 
 @dashboard_blueprint.route("", strict_slashes=False, methods=["GET"])
 def show_dashboard():
+    get_userinfo()
     return render_template("Dashboard.html.jinja")
 
 
