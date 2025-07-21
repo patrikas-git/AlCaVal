@@ -16,7 +16,8 @@ scheduler.add_job(
     id="worker_job",
     name="RelVals transition processing",
     next_run_time=datetime.now() + timedelta(seconds=60),
-    misfire_grace_time=None
+    misfire_grace_time=60,
+    max_instances=1 # prevent duplicate job in dev
 )
 scheduler.start()
 
