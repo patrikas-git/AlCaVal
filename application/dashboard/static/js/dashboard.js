@@ -1,3 +1,10 @@
+let submissionWorkers = [];
+let submissionQueue = [];
+let locks = [];
+let settings = [];
+let uptime = {};
+let buildInfo = undefined;
+
 function fetchWorkerInfo() {
   fetch('api/system/workers').then(res => res.json()).then(d => {
     submissionWorkers = d.response;
@@ -54,4 +61,23 @@ function fetchBuildInfo() {
     buildInfo = d.response;
     $('#build-info-list').html('<li>Build version: ' + buildInfo + '</li>')
   })
+}
+
+// --- NEW LOGIC MOVED FROM THE INLINE SCRIPT ---
+function initializeWorkerDashboard() {
+  const refreshInterval = 60000;
+  const roleIndex = parseInt(document.getElementById('charts-container').dataset.roleIndex, 10);
+  fetchWorkerInfo()
+  setInterval(fetchWorkerInfo, refreshInterval);
+  fetchQueueInfo()
+  setInterval(fetchQueueInfo, refreshInterval);
+  if(roleIndex > 1) {
+    fetchLocksInfo()
+    setInterval(fetchLocksInfo, refreshInterval);
+    fetchUptime()
+    setInterval(fetchUptime, refreshInterval);
+    fetchBuildInfo()
+    setInterval(fetchBuildInfo, refreshInterval);
+  }
+  $('title').html('AlCaVal | Dashboard')
 }
