@@ -5,6 +5,46 @@ const timeFilterSelector = document.getElementById('time-filter');
 const timeUnitSelector = document.getElementById('time-unit');
 const batchNameSelector = document.getElementById('batch-name-filter');
 const chartsContainer = document.getElementById('charts-container');
+const groupMappings = {
+  'CSC': 'CSC',
+  'CSCAnodeTiming': 'CSC',
+  'CSCTimeCorrections': 'CSC',
+  'CTPPSPixelGains': 'PPS',
+  'PPS': 'PPS',
+  'ECAL': 'ECAL',
+  'EcalIntercalibConstants': 'ECAL',
+  'EcalIntercalibConstants_EgammaHighStats': 'ECAL',
+  'GEM': 'GEM',
+  'GEM_Alignment': 'GEM',
+  'GEM_Channel_Mapping': 'GEM',
+  'GEM_DPG': 'GEM',
+  'HCAL': 'HCAL',
+  'HCAL_WithEGammaDataset': 'HCAL',
+  'JEC': 'JetMET',
+  'JERC': 'JetMET',
+  'JME': 'JetMET',
+  'JetMET': 'JetMET',
+  'MuAl': 'Muon Alignment', 
+  'Muon': 'Muon Alignment', 
+  'Muon_Alignment': 'Muon Alignment',
+  'Pixel': 'Pixel',
+  'Pixels': 'Pixel',
+  'RPC_GEM': 'RPC',
+  'RPC_Geometry_Fix': 'RPC',
+  'SiStrip': 'SiStrip',
+  'SiStripApvGain2': 'SiStrip',
+  'SiStrip_Tracker_DPG': 'SiStrip',
+  'TkAl': 'Tracker Alignment',
+  'TkAl_HLT_w27': 'Tracker Alignment',
+  'TkAl_Pixels': 'Tracker Alignment',
+  'TkPixel': 'Tracker Alignment',
+  'Tracker': 'Tracker Alignment',
+  'TrackerAlignment': 'Tracker Alignment',
+  'TrackerDPG_Pixel': 'Tracker Alignment',
+  'TrackerPixel': 'Tracker Alignment',
+  'Tracker_Pixel': 'Tracker Alignment',
+  'TrkAl': 'Tracker Alignment',
+};
 let allTransitions = [];
 
 function getShortenedLabel(unitName) {
@@ -43,11 +83,11 @@ function displayUpdateTime(timestamp) {
 }
 
 function populateBatchNameSelector() {
-    const batchNames = [...new Set(allTransitions.map(t => t.batch_name))].sort();
-    batchNames.forEach(name => {
-        if (name) {
-            batchNameSelector.add(new Option(name, name));
-        }
+    const mappedNames = allTransitions.map(t => groupMappings[t.batch_name] || t.batch_name);
+    const finalOptions = [...new Set(mappedNames)].sort();
+
+    finalOptions.forEach(name => {
+        if (name) batchNameSelector.add(new Option(name, name));
     });
 }
 
@@ -126,7 +166,15 @@ function renderAllCharts() {
   }
   
   if (selectedBatch !== 'all') {
-    filteredTransitions = filteredTransitions.filter(t => t.batch_name === selectedBatch);
+    const batchMembers = Object.keys(groupMappings).filter(
+        originalName => groupMappings[originalName] === selectedBatch
+    );
+
+    if (batchMembers.length > 0) {
+        filteredTransitions = filteredTransitions.filter(t => batchMembers.includes(t.batch_name));
+    } else {
+        filteredTransitions = filteredTransitions.filter(t => t.batch_name === selectedBatch);
+    }
   }
 
   const groupedByType = filteredTransitions.reduce((acc, t) => {
