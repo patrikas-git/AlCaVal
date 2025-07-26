@@ -238,7 +238,7 @@ objects:
             claimName: "${DATABASE_SERVICE_NAME}"
         containers:
         - name: mongodb
-          image: docker.io/library/mongo:latest
+          image: registry.cern.ch/docker.io/library/mongo:latest
           ports:
           - containerPort: 27017
           env:
