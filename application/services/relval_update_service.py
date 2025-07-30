@@ -103,7 +103,7 @@ class RelvalUpdateService:
         for relval in db_relvals:
             workflows_to_notify = []
             prepid = relval["prepid"]
-            all_workflows = reqmgr_grouped_by_prepid.get(prepid)
+            all_workflows = reqmgr_grouped_by_prepid.get(prepid, {})
             for workflow_id, reqmgr_wf in all_workflows.items():
                 db_wf = next(
                     (
