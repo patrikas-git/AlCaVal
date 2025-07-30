@@ -25,7 +25,7 @@ scheduler.add_job(
 scheduler.add_job(
     func=lambda: relvalUpdateService.check_workflow_status(app),
     trigger="interval",
-    minutes=1,
+    minutes=15,
     id="relval_update_job",
     name="RelVal update job",
     next_run_time=datetime.now() + timedelta(seconds=60),
