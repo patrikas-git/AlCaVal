@@ -1,19 +1,15 @@
 from datetime import datetime, timedelta
+from application.services.dashboard_service import DashboardService
 from application import create_app
 from core_lib.utils.global_config import Config
-from application.dashboard.dashboard_view import process_relval_transitions
-from apscheduler.schedulers.background import BackgroundScheduler
-import atexit
+
 
 app = create_app()
 
 scheduler = BackgroundScheduler()
+dashboardService = DashboardService()
 scheduler.add_job(
-    func=process_relval_transitions, 
-    trigger="interval", 
-    minutes=15, 
-    args=[app],
-    id="worker_job",
+    func=lambda: dashboardService.process_relval_transitions(app),
     name="RelVals transition processing",
     next_run_time=datetime.now() + timedelta(seconds=60),
     misfire_grace_time=60,
