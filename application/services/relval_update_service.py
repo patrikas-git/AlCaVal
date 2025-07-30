@@ -42,14 +42,7 @@ class RelvalUpdateService:
 
         projection = {"prepid": 1, "steps": 1, "history": 1, "workflows": 1}
 
-        return list(
-            relvals_collection.find(
-                {
-                    "_id": "CMSSW_12_4_6__TrackerAlignment-ExpressNew-HLTPhysicsRun2022B-00002"
-                },
-                projection,
-            )
-        )
+        return list(relvals_collection.find({}, projection))
 
     def __get_workflows_from_reqmgr2(self, relvals: list) -> list:
         prepids = [x["prepid"] for x in relvals]
