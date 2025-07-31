@@ -87,8 +87,12 @@ class RelvalUpdateService:
             grouped = {}
             for reqmgr_wf in reqmgr_workflows:
                 prepid = reqmgr_wf.get("PrepID")
-                if prepid:
-                    grouped.setdefault(prepid, {})[reqmgr_wf.get("_id")] = reqmgr_wf
+                if isinstance(prepid, str):
+                    grouped.setdefault(prepid, {})[
+                        reqmgr_wf.get("RequestName")
+                    ] = reqmgr_wf
+                else:
+                    self.logger.error("Failed to get single prepid %s", prepid)
             return grouped
 
         reqmgr_grouped_by_prepid = __group_reqmgr_workflows_by_prepid(reqmgr_workflows)
@@ -106,9 +110,7 @@ class RelvalUpdateService:
                     ),
                     None,
                 )
-                if not db_wf:
-                    continue
-                if self.__notify_about_workflow(db_wf, reqmgr_wf):
+                if not db_wf or self.__should_notify_about_workflow(db_wf, reqmgr_wf):
                     workflows_to_notify.append(workflow_id)
             if len(workflows_to_notify) > 0:
                 changed_relvals[prepid] = {
@@ -118,7 +120,9 @@ class RelvalUpdateService:
                 }
         return changed_relvals
 
-    def __notify_about_workflow(self, db_workflow: dict, reqmgr_workflow: dict) -> bool:
+    def __should_notify_about_workflow(
+        self, db_workflow: dict, reqmgr_workflow: dict
+    ) -> bool:
         latest_db_status = max(
             db_workflow.get("status_history", []), key=lambda item: item.get("time", 0)
         ).get("status", "")
@@ -193,14 +197,14 @@ class RelvalUpdateService:
         prepids = list(relvals_to_update.keys())
         subject = f"RelVal {prepids} Status Updated to Announced"
 
-        body = "Hello,\n\n"
+        body = "Hello,\n\nThe status of RelVal workflows were updated.\n\n"
         recipients = []
         for prepid, workflows in relvals_to_update.items():
-            body += f'The status of RelVal workflow {prepid} has been updated to "announced".\n'
-            body += f'You can find this RelVal at <a href="{self.service_url}/relvals?prepid={prepid}">{prepid}</a>\n'
+            body += f'Updated Relval: <a href="{self.service_url}/relvals?prepid={prepid}">{prepid}</a>\n'
             for workflow in workflows["workflows_to_notify"]:
-                body += f'Relevant workflow: <a href="{self.cmsweb_url}/reqmgr2/fetch?rid={workflow}">{workflow}</a>'
+                body += f'Relevant workflow: <a href="{self.cmsweb_url}/reqmgr2/fetch?rid={workflow}">{workflow}</a>\n'
             relval = workflows["relval"]
+            body += "\n"
             # Workaround for logging in Emailer:36
             relval_obj = RelvalWithMethods(relval)
             recipients += self.emailer.get_recipients(relval_obj)

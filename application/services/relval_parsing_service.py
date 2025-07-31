@@ -84,7 +84,10 @@ class RelvalParsingService:
                 "status_history": [],
             }
             for output_dataset in output_datasets:
-                for history_entry in reversed(workflow.get("EventNumberHistory", [])):
+                history_entries = workflow.get("EventNumberHistory", [])
+                if not history_entries:
+                    history_entries = []
+                for history_entry in reversed(history_entries):
                     if output_dataset in history_entry["Datasets"]:
                         dataset_dict = history_entry["Datasets"][output_dataset]
                         new_workflow["output_datasets"].append(
