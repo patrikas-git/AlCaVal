@@ -196,7 +196,7 @@ class RelvalUpdateService:
         Notifies when a relval is updated to 'announced' or 'normal-archived'.
         """
         subject = f"{len(relvals_to_update)} Relvals Updated"
-        if self.is_development == "True":
+        if self.is_development:
             self.logger.info(subject)
             return
 
