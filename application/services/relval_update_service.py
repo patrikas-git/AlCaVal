@@ -198,6 +198,7 @@ class RelvalUpdateService:
         subject = f"{len(relvals_to_update)} Relvals Updated"
         if self.is_development == "True":
             self.logger.info(subject)
+            return
 
         body = "Hello,\n\nThe status of RelVal workflows were updated.\n\n"
         recipients = []
