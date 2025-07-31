@@ -35,7 +35,7 @@ class ReqMgrClient:
             result_list = response.json().get("result", [])
 
             if not isinstance(result_list, list) or len(result_list) == 0:
-                return {}
+                continue
 
             for _, details in result_list[0].items():
                 if not isinstance(details, dict):
