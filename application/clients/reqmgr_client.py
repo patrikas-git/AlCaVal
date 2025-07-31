@@ -42,4 +42,4 @@ class ReqMgrClient:
                     continue
 
                 workflow_statuses.append(details)
-            return workflow_statuses
+        return workflow_statuses
