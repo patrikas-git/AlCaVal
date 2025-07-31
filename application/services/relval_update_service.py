@@ -20,6 +20,7 @@ class RelvalUpdateService:
     def __init__(self):
         self.service_url = Config.get("service_url")
         self.cmsweb_url = Config.get("cmsweb_url")
+        self.is_development = Config.get("development")
         self.reqmgr_client = ReqMgrClient()
         self.relval_parsing_service = RelvalParsingService()
         self.emailer = Emailer()
@@ -194,8 +195,9 @@ class RelvalUpdateService:
         """
         Notifies when a relval is updated to 'announced' or 'normal-archived'.
         """
-        prepids = list(relvals_to_update.keys())
-        subject = f"RelVal {prepids} Status Updated to Announced"
+        subject = f"{len(relvals_to_update)} Relvals Updated"
+        if self.is_development == "True":
+            self.logger.info(subject)
 
         body = "Hello,\n\nThe status of RelVal workflows were updated.\n\n"
         recipients = []
@@ -213,7 +215,7 @@ class RelvalUpdateService:
         self.logger.debug(
             "Email sent to %s about the status update of RelVal '%s' to 'announced'.",
             recipients,
-            prepids,
+            list(relvals_to_update.keys()),
         )
 
 
