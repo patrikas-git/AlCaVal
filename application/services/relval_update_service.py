@@ -125,7 +125,7 @@ class RelvalUpdateService:
         self, db_workflow: dict, reqmgr_workflow: dict
     ) -> bool:
         latest_db_status = max(
-            db_workflow.get("status_history", []), key=lambda item: item.get("time", 0)
+            db_workflow.get("status_history", []), key=lambda item: item.get("time", 0), default={}
         ).get("status", "")
         reqmgr_statuses = {
             item.get("Status") for item in reqmgr_workflow.get("RequestTransition", [])
