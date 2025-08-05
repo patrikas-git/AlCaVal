@@ -212,6 +212,7 @@ class RelvalUpdateService:
             relval_obj = RelvalWithMethods(relval)
             recipients += self.emailer.get_recipients(relval_obj)
 
+        recipients = set(recipients)
         self.emailer.send_with_mime(subject, body, recipients)
         self.logger.debug(
             "Email sent to %s about the status update of RelVal '%s' to 'announced'.",
